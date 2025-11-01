@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ფეხბურთელის ძებნა - AI აგენტი</title>
+    <title>ფეხბურთელის ძებნა - AI ჩატბოტი</title>
     <style>
         * {
             margin: 0;
@@ -21,12 +21,15 @@
         .container {
             max-width: 900px;
             margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
         }
 
         .header {
             text-align: center;
             color: white;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .header h1 {
@@ -40,18 +43,260 @@
             opacity: 0.9;
         }
 
-        .search-box {
+        .chat-container {
             background: white;
-            padding: 30px;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            margin-bottom: 30px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .message.bot .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            line-height: 1.5;
+        }
+
+        .message.bot .message-content {
+            background: #f0f0f0;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .player-card {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .player-header-small {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .player-photo-small {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+        }
+
+        .player-photo-small.placeholder {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .player-info-small h3 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 1.3em;
+        }
+
+        .player-info-small p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .stats-grid-small {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .stat-box-small {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+
+        .stat-box-small h4 {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        .stat-box-small p {
+            font-size: 0.75em;
+            opacity: 0.9;
+        }
+
+        .bio-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .bio-section h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .bio-section p {
+            color: #555;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .source-badge-small {
+            display: inline-block;
+            background: #4caf50;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            margin-bottom: 5px;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            padding: 12px 18px;
+            background: #f0f0f0;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            width: fit-content;
+        }
+
+        .typing-indicator.active {
+            display: flex;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .suggestions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-btn {
+            padding: 8px 15px;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border: 1px solid #667eea;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .suggestion-btn:hover {
+            background: #667eea;
+            color: white;
         }
 
         .input-group {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
         }
 
         input[type="text"] {
@@ -59,7 +304,7 @@
             padding: 15px;
             font-size: 16px;
             border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 25px;
             transition: all 0.3s;
         }
 
@@ -70,12 +315,12 @@
         }
 
         button {
-            padding: 15px 30px;
+            padding: 15px 25px;
             font-size: 16px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 25px;
             cursor: pointer;
             transition: transform 0.2s;
             font-weight: bold;
@@ -91,287 +336,262 @@
             transform: none;
         }
 
-        .loading {
-            text-align: center;
-            padding: 40px;
-            display: none;
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
         }
 
-        .loading.active {
-            display: block;
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .result-card {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            display: none;
-        }
-
-        .result-card.active {
-            display: block;
-            animation: slideUp 0.5s ease;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .player-header {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 30px;
-            align-items: center;
-        }
-
-        .player-photo {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 5px solid #667eea;
-        }
-
-        .player-photo.placeholder {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 60px;
-            font-weight: bold;
-        }
-
-        .player-info h2 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 2em;
-        }
-
-        .player-info p {
-            color: #666;
-            font-size: 1.1em;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-box {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            color: white;
-        }
-
-        .stat-box h3 {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .stat-box p {
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-
-        .section {
-            margin-bottom: 25px;
-        }
-
-        .section h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-
-        .section p, .section ul {
-            color: #555;
-            line-height: 1.8;
-            font-size: 1.05em;
-        }
-
-        .section ul {
-            list-style-position: inside;
-            padding-left: 20px;
-        }
-
-        .section li {
-            margin-bottom: 8px;
-        }
-
-        .error {
-            background: #ff6b6b;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .error.active {
-            display: block;
-        }
-
-        .examples {
-            background: rgba(255,255,255,0.2);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
-        .examples h4 {
-            color: white;
-            margin-bottom: 10px;
-        }
-
-        .example-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .example-btn {
-            padding: 8px 15px;
-            background: rgba(255,255,255,0.3);
-            color: white;
-            border: 1px solid white;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .example-btn:hover {
-            background: white;
-            color: #667eea;
-        }
-
-        .source-badge {
-            display: inline-block;
-            background: #4caf50;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            margin-bottom: 10px;
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚽ ფეხბურთელის ძებნა</h1>
-            <p>AI აგენტი - მოიძიე ნებისმიერი ფეხბურთელის ბიოგრაფია და სტატისტიკა</p>
+            <h1>⚽ ფეხბურთის AI ჩატბოტი</h1>
+            <p>მოიკითხე ნებისმიერი ფეხბურთელის შესახებ</p>
         </div>
 
-        <div class="search-box">
-            <div class="examples">
-                <h4>მაგალითები:</h4>
-                <div class="example-buttons">
-                    <button class="example-btn" onclick="searchPlayer('Cristiano Ronaldo')">Cristiano Ronaldo</button>
-                    <button class="example-btn" onclick="searchPlayer('Lionel Messi')">Lionel Messi</button>
-                    <button class="example-btn" onclick="searchPlayer('Khvicha Kvaratskhelia')">Khvicha Kvaratskhelia</button>
-                    <button class="example-btn" onclick="searchPlayer('Erling Haaland')">Erling Haaland</button>
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        გამარჯობა! 👋 მე ვარ ფეხბურთის AI ასისტენტი. შეგიძლია მკითხო ნებისმიერი ფეხბურთელის შესახებ და მე მოგაწოდებ დეტალურ ინფორმაციას მათი ბიოგრაფიის, სტატისტიკისა და კარიერის შესახებ. რას გაინტერესებს?
+                    </div>
                 </div>
             </div>
 
-            <div class="input-group">
-                <input type="text" id="playerName" placeholder="შეიყვანე ფეხბურთელის სახელი..." onkeypress="handleEnter(event)">
-                <button onclick="searchPlayer()" id="searchBtn">🔍 ძებნა</button>
+            <div class="chat-input-container">
+                <div class="suggestions" id="suggestions">
+                    <button class="suggestion-btn" onclick="sendMessage('Tell me about Cristiano Ronaldo')">Cristiano Ronaldo</button>
+                    <button class="suggestion-btn" onclick="sendMessage('Who is Lionel Messi?')">Lionel Messi</button>
+                    <button class="suggestion-btn" onclick="sendMessage('Khvicha Kvaratskhelia info')">Khvicha Kvaratskhelia</button>
+                    <button class="suggestion-btn" onclick="sendMessage('Erling Haaland stats')">Erling Haaland</button>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="userInput" placeholder="მაგ: Tell me about Mbappe..." onkeypress="handleEnter(event)">
+                    <button onclick="sendMessage()" id="sendBtn">📤 გაგზავნა</button>
+                </div>
             </div>
-            
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>ვეძებ ინფორმაციას...</p>
-            </div>
-
-            <div class="error" id="error"></div>
         </div>
-
-        <div class="result-card" id="results"></div>
     </div>
 
     <script>
-        let currentData = {};
-
         function handleEnter(event) {
             if (event.key === 'Enter') {
-                searchPlayer();
+                sendMessage();
             }
         }
 
-        async function searchPlayer(name) {
-            const playerName = name || document.getElementById('playerName').value.trim();
+        function addMessage(text, isUser, playerData = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
             
-            if (!playerName) {
-                showError('გთხოვთ შეიყვანოთ ფეხბურთელის სახელი');
-                return;
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = isUser ? '👤' : '🤖';
+            
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = text;
+
+            if (playerData) {
+                const playerCard = createPlayerCard(playerData);
+                content.appendChild(playerCard);
+            }
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
+            chatMessages.appendChild(messageDiv);
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function createPlayerCard(data) {
+            const sports = data.sports;
+            const wiki = data.wiki;
+            
+            const card = document.createElement('div');
+            card.className = 'player-card';
+            
+            let html = '<div class="player-header-small">';
+            
+            const photoUrl = sports?.strThumb || wiki?.image;
+            if (photoUrl) {
+                html += `<img src="${photoUrl}" alt="Player" class="player-photo-small">`;
+            } else {
+                const initial = (sports?.strPlayer || wiki?.title || 'P')[0];
+                html += `<div class="player-photo-small placeholder">${initial}</div>`;
+            }
+            
+            html += '<div class="player-info-small">';
+            html += `<h3>${sports?.strPlayer || wiki?.title || 'ფეხბურთელი'}</h3>`;
+            if (sports?.strNationality) {
+                html += `<p>🌍 ${sports.strNationality}</p>`;
+            }
+            if (sports?.strPosition) {
+                html += `<p>⚽ ${sports.strPosition}</p>`;
+            }
+            html += '</div></div>';
+
+            html += '<div class="stats-grid-small">';
+            
+            if (sports?.strTeam) {
+                html += `<div class="stat-box-small">
+                    <h4>🏟️</h4>
+                    <p>${sports.strTeam}</p>
+                </div>`;
             }
 
-           
-            if (name) {
-                document.getElementById('playerName').value = name;
+            if (sports?.dateBorn) {
+                const birthDate = new Date(sports.dateBorn);
+                const age = new Date().getFullYear() - birthDate.getFullYear();
+                html += `<div class="stat-box-small">
+                    <h4>${age} წლის</h4>
+                    <p>${sports.dateBorn}</p>
+                </div>`;
             }
 
-            showLoading(true);
-            hideError();
-            hideResults();
+            if (sports?.strHeight) {
+                html += `<div class="stat-box-small">
+                    <h4>${sports.strHeight}</h4>
+                    <p>სიმაღლე</p>
+                </div>`;
+            }
 
-            try {
-                //TheSportsDB API
-                const sportsData = await fetchTheSportsDB(playerName);
-                
-                //Wikipedia API
-                const wikiData = await fetchWikipedia(playerName);
+            if (sports?.strWeight) {
+                html += `<div class="stat-box-small">
+                    <h4>${sports.strWeight}</h4>
+                    <p>წონა</p>
+                </div>`;
+            }
 
-                if (!sportsData && !wikiData) {
-                    showError('ინფორმაცია ვერ მოიძებნა. სცადეთ სხვა მოთამაშის სახელი.');
-                    showLoading(false);
-                    return;
+            html += '</div>';
+
+            if (wiki?.extract || sports?.strDescriptionEN) {
+                html += '<div class="bio-section">';
+                html += '<h4>📖 ბიოგრაფია</h4>';
+                if (wiki?.extract) {
+                    html += `<span class="source-badge-small">Wikipedia</span>`;
+                    const shortExtract = wiki.extract.substring(0, 300) + (wiki.extract.length > 300 ? '...' : '');
+                    html += `<p>${shortExtract}</p>`;
+                } else if (sports?.strDescriptionEN) {
+                    html += `<span class="source-badge-small">TheSportsDB</span>`;
+                    html += `<p>${sports.strDescriptionEN.substring(0, 300)}...</p>`;
                 }
-
-                currentData = {
-                    sports: sportsData,
-                    wiki: wikiData
-                };
-
-                displayResults(currentData);
-                showLoading(false);
-
-            } catch (error) {
-                console.error('Error:', error);
-                showError('დაფიქსირდა შეცდომა. გთხოვთ სცადოთ თავიდან.');
-                showLoading(false);
+                html += '</div>';
             }
+
+            card.innerHTML = html;
+            return card;
+        }
+
+        function showTyping() {
+            const chatMessages = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot';
+            typingDiv.id = 'typing-message';
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = '🤖';
+            
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator active';
+            typingIndicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            
+            typingDiv.appendChild(avatar);
+            typingDiv.appendChild(typingIndicator);
+            chatMessages.appendChild(typingDiv);
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typingMessage = document.getElementById('typing-message');
+            if (typingMessage) {
+                typingMessage.remove();
+            }
+        }
+
+        function extractPlayerName(message) {
+            const lowerMessage = message.toLowerCase();
+            
+            const patterns = [
+                /about\s+([a-z\s]+?)(\?|$|stats|info)/i,
+                /who\s+is\s+([a-z\s]+?)(\?|$)/i,
+                /tell\s+me\s+about\s+([a-z\s]+?)(\?|$)/i,
+                /info\s+about\s+([a-z\s]+?)(\?|$)/i,
+                /([a-z\s]+?)\s+stats/i,
+                /([a-z\s]+?)\s+info/i,
+            ];
+            
+            for (let pattern of patterns) {
+                const match = message.match(pattern);
+                if (match && match[1]) {
+                    return match[1].trim();
+                }
+            }
+            
+            const words = message.split(' ').filter(w => w.length > 2);
+            if (words.length > 0) {
+                return words.slice(0, 3).join(' ');
+            }
+            
+            return message.trim();
+        }
+
+        async function sendMessage(predefinedMessage) {
+            const input = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = predefinedMessage || input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, true);
+            input.value = '';
+            sendBtn.disabled = true;
+            
+            showTyping();
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const playerName = extractPlayerName(message);
+            
+            try {
+                const sportsData = await fetchTheSportsDB(playerName);
+                const wikiData = await fetchWikipedia(playerName);
+                
+                hideTyping();
+                
+                if (!sportsData && !wikiData) {
+                    addMessage(`უკაცრავად, ინფორმაცია "${playerName}"-ის შესახებ ვერ მოვიძიე. 😔 შეამოწმე სახელის სწორი წერა ან სცადე სხვა ფეხბურთელის სახელი.`, false);
+                } else {
+                    const botResponse = `აი ინფორმაცია ${sportsData?.strPlayer || wikiData?.title || playerName}-ის შესახებ:`;
+                    addMessage(botResponse, false, {
+                        sports: sportsData,
+                        wiki: wikiData
+                    });
+                }
+                
+            } catch (error) {
+                hideTyping();
+                console.error('Error:', error);
+                addMessage('უკაცრავად, დაფიქსირდა შეცდომა. 😓 გთხოვთ სცადოთ თავიდან.', false);
+            }
+            
+            sendBtn.disabled = false;
         }
 
         async function fetchTheSportsDB(playerName) {
@@ -391,14 +611,12 @@
 
         async function fetchWikipedia(playerName) {
             try {
-               
                 const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(playerName + ' footballer')}&format=json&origin=*&srlimit=1`);
                 const searchData = await searchResponse.json();
                 
                 if (searchData.query.search.length > 0) {
                     const pageTitle = searchData.query.search[0].title;
                     
-                  
                     const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=true&explaintext=true&titles=${encodeURIComponent(pageTitle)}&format=json&origin=*&piprop=original`);
                     const contentData = await contentResponse.json();
                     
@@ -416,124 +634,6 @@
                 console.error('Wikipedia Error:', error);
                 return null;
             }
-        }
-
-        function displayResults(data) {
-            const resultsDiv = document.getElementById('results');
-            const sports = data.sports;
-            const wiki = data.wiki;
-
-            let html = '';
-
-          
-            html += '<div class="player-header">';
-            
-            const photoUrl = sports?.strThumb || wiki?.image;
-            if (photoUrl) {
-                html += `<img src="${photoUrl}" alt="Player" class="player-photo">`;
-            } else {
-                const initial = (sports?.strPlayer || wiki?.title || 'P')[0];
-                html += `<div class="player-photo placeholder">${initial}</div>`;
-            }
-
-            html += '<div class="player-info">';
-            html += `<h2>${sports?.strPlayer || wiki?.title || 'ფეხბურთელი'}</h2>`;
-            if (sports?.strNationality) {
-                html += `<p>🌍 ${sports.strNationality}</p>`;
-            }
-            if (sports?.strPosition) {
-                html += `<p>⚽ ${sports.strPosition}</p>`;
-            }
-            html += '</div></div>';
-
-            html += '<div class="stats-grid">';
-            
-            if (sports?.strTeam) {
-                html += `<div class="stat-box">
-                    <h3>🏟️</h3>
-                    <p>${sports.strTeam}</p>
-                    <p>მიმდინარე კლუბი</p>
-                </div>`;
-            }
-
-            if (sports?.dateBorn) {
-                const birthDate = new Date(sports.dateBorn);
-                const age = new Date().getFullYear() - birthDate.getFullYear();
-                html += `<div class="stat-box">
-                    <h3>${age}</h3>
-                    <p>წლის</p>
-                    <p>${sports.dateBorn}</p>
-                </div>`;
-            }
-
-            if (sports?.strHeight) {
-                html += `<div class="stat-box">
-                    <h3>${sports.strHeight}</h3>
-                    <p>სიმაღლე</p>
-                </div>`;
-            }
-
-            if (sports?.strWeight) {
-                html += `<div class="stat-box">
-                    <h3>${sports.strWeight}</h3>
-                    <p>წონა</p>
-                </div>`;
-            }
-
-            html += '</div>';
-
-          
-            if (wiki?.extract || sports?.strDescriptionEN) {
-                html += '<div class="section">';
-                html += '<h3>📖 ბიოგრაფია</h3>';
-                if (wiki?.extract) {
-                    html += `<span class="source-badge">Wikipedia</span>`;
-                    const shortExtract = wiki.extract.substring(0, 500) + (wiki.extract.length > 500 ? '...' : '');
-                    html += `<p>${shortExtract}</p>`;
-                } else if (sports?.strDescriptionEN) {
-                    html += `<span class="source-badge">TheSportsDB</span>`;
-                    html += `<p>${sports.strDescriptionEN.substring(0, 500)}...</p>`;
-                }
-                html += '</div>';
-            }
-
-            if (sports?.strBirthLocation) {
-                html += '<div class="section">';
-                html += '<h3>📍 დაბადების ადგილი</h3>';
-                html += `<p>${sports.strBirthLocation}</p>`;
-                html += '</div>';
-            }
-
-
-            resultsDiv.innerHTML = html;
-            resultsDiv.classList.add('active');
-        }
-
-        function showLoading(show) {
-            const loading = document.getElementById('loading');
-            const searchBtn = document.getElementById('searchBtn');
-            
-            if (show) {
-                loading.classList.add('active');
-                searchBtn.disabled = true;
-            } else {
-                loading.classList.remove('active');
-                searchBtn.disabled = false;
-            }
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.classList.add('active');
-        }
-
-        function hideError() {
-            document.getElementById('error').classList.remove('active');
-        }
-
-        function hideResults() {
-            document.getElementById('results').classList.remove('active');
         }
     </script>
 </body>
