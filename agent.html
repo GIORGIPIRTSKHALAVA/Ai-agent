@@ -352,6 +352,14 @@
         .chat-messages::-webkit-scrollbar-thumb:hover {
             background: #764ba2;
         }
+
+        .error-message {
+            background: #ff4444;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -387,6 +395,9 @@
     </div>
 
     <script>
+        // Configuration - Update this with your actual API endpoint
+        const API_ENDPOINT = 'api.php'; // Update this to your actual API URL
+
         function handleEnter(event) {
             if (event.key === 'Enter') {
                 sendMessage();
@@ -525,33 +536,6 @@
             }
         }
 
-        function extractPlayerName(message) {
-            const lowerMessage = message.toLowerCase();
-            
-            const patterns = [
-                /about\s+([a-z\s]+?)(\?|$|stats|info)/i,
-                /who\s+is\s+([a-z\s]+?)(\?|$)/i,
-                /tell\s+me\s+about\s+([a-z\s]+?)(\?|$)/i,
-                /info\s+about\s+([a-z\s]+?)(\?|$)/i,
-                /([a-z\s]+?)\s+stats/i,
-                /([a-z\s]+?)\s+info/i,
-            ];
-            
-            for (let pattern of patterns) {
-                const match = message.match(pattern);
-                if (match && match[1]) {
-                    return match[1].trim();
-                }
-            }
-            
-            const words = message.split(' ').filter(w => w.length > 2);
-            if (words.length > 0) {
-                return words.slice(0, 3).join(' ');
-            }
-            
-            return message.trim();
-        }
-
         async function sendMessage(predefinedMessage) {
             const input = document.getElementById('userInput');
             const sendBtn = document.getElementById('sendBtn');
@@ -565,75 +549,34 @@
             
             showTyping();
             
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            const playerName = extractPlayerName(message);
-            
             try {
-                const sportsData = await fetchTheSportsDB(playerName);
-                const wikiData = await fetchWikipedia(playerName);
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+
+                const data = await response.json();
                 
                 hideTyping();
                 
-                if (!sportsData && !wikiData) {
-                    addMessage(`უკაცრავად, ინფორმაცია "${playerName}"-ის შესახებ ვერ მოვიძიე. 😔 შეამოწმე სახელის სწორი წერა ან სცადე სხვა ფეხბურთელის სახელი.`, false);
+                if (data.success) {
+                    addMessage(data.message, false, data.data);
                 } else {
-                    const botResponse = `აი ინფორმაცია ${sportsData?.strPlayer || wikiData?.title || playerName}-ის შესახებ:`;
-                    addMessage(botResponse, false, {
-                        sports: sportsData,
-                        wiki: wikiData
-                    });
+                    addMessage(data.message || 'უკაცრავად, დაფიქსირდა შეცდომა. 😓 გთხოვთ სცადოთ თავიდან.', false);
                 }
                 
             } catch (error) {
                 hideTyping();
                 console.error('Error:', error);
-                addMessage('უკაცრავად, დაფიქსირდა შეცდომა. 😓 გთხოვთ სცადოთ თავიდან.', false);
+                addMessage('უკაცრავად, დაფიქსირდა შეცდომა სერვერთან კავშირში. 😓 გთხოვთ შეამოწმოთ API-ს კონფიგურაცია და სცადოთ თავიდან.', false);
             }
             
             sendBtn.disabled = false;
-        }
-
-        async function fetchTheSportsDB(playerName) {
-            try {
-                const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(playerName)}`);
-                const data = await response.json();
-                
-                if (data.player && data.player.length > 0) {
-                    return data.player[0];
-                }
-                return null;
-            } catch (error) {
-                console.error('TheSportsDB Error:', error);
-                return null;
-            }
-        }
-
-        async function fetchWikipedia(playerName) {
-            try {
-                const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(playerName + ' footballer')}&format=json&origin=*&srlimit=1`);
-                const searchData = await searchResponse.json();
-                
-                if (searchData.query.search.length > 0) {
-                    const pageTitle = searchData.query.search[0].title;
-                    
-                    const contentResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=true&explaintext=true&titles=${encodeURIComponent(pageTitle)}&format=json&origin=*&piprop=original`);
-                    const contentData = await contentResponse.json();
-                    
-                    const pages = contentData.query.pages;
-                    const page = Object.values(pages)[0];
-                    
-                    return {
-                        title: page.title,
-                        extract: page.extract,
-                        image: page.original ? page.original.source : null
-                    };
-                }
-                return null;
-            } catch (error) {
-                console.error('Wikipedia Error:', error);
-                return null;
-            }
         }
     </script>
 </body>
