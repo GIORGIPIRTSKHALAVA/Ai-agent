@@ -8,85 +8,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
+// Ollama Configuration
+define('OLLAMA_URL', 'http://localhost:11434/api/chat');
+define('OLLAMA_MODEL', 'mistral');
 
-define('HF_API_KEY', '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');
-define('HF_MODEL', 'meta-llama/Llama-3.1-8B-Instruct');
-define('HF_API_URL', 'https://api-inference.huggingface.co/models/' . HF_MODEL);
-
-
+// Tool definitions for the AI
 $tools = [
     [
-        'name' => 'search_thesportsdb',
-        'description' => 'Search for football player information from TheSportsDB API. Returns player stats, team, nationality, position, height, weight, and biography.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
-                'player_name' => [
-                    'type' => 'string',
-                    'description' => 'The name of the football player to search for'
-                ]
-            ],
-            'required' => ['player_name']
+        'type' => 'function',
+        'function' => [
+            'name' => 'search_thesportsdb',
+            'description' => 'Search for football player information from TheSportsDB API. Returns player stats, team, nationality, position, height, weight, and biography. Use this for getting player statistics and basic information.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'player_name' => [
+                        'type' => 'string',
+                        'description' => 'The full name of the football player to search for (e.g., "Cristiano Ronaldo", "Lionel Messi")'
+                    ]
+                ],
+                'required' => ['player_name']
+            ]
         ]
     ],
     [
-        'name' => 'search_wikipedia',
-        'description' => 'Search for football player information from Wikipedia. Returns detailed biography, career information, and images.',
-        'parameters' => [
-            'type' => 'object',
-            'properties' => [
-                'player_name' => [
-                    'type' => 'string',
-                    'description' => 'The name of the football player to search for'
-                ]
-            ],
-            'required' => ['player_name']
+        'type' => 'function',
+        'function' => [
+            'name' => 'search_wikipedia',
+            'description' => 'Search for football player information from Wikipedia. Returns detailed biography, career information, and images. Use this for getting comprehensive career history and biographical details.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'player_name' => [
+                        'type' => 'string',
+                        'description' => 'The full name of the football player to search for (e.g., "Cristiano Ronaldo", "Lionel Messi")'
+                    ]
+                ],
+                'required' => ['player_name']
+            ]
         ]
     ]
 ];
 
-function callHuggingFaceAPI($messages, $tools) {
-    $systemPrompt = "You are a helpful football assistant. When a user asks about a football player, you should use the available tools to fetch information. First use search_thesportsdb, then search_wikipedia to get comprehensive information. Always respond in a friendly manner.
-
-Available tools:
-- search_thesportsdb: Gets player stats and basic info
-- search_wikipedia: Gets detailed biography and career info
-
-When calling tools, respond in this JSON format:
-{\"tool\": \"tool_name\", \"parameters\": {\"player_name\": \"Player Name\"}}
-
-After receiving tool results, provide a natural language response about the player.";
-
+/**
+ * Call Ollama Mistral with tool support
+ */
+function callMistralAgent($messages, $tools) {
     $payload = [
-        'inputs' => $systemPrompt . "\n\nConversation:\n" . json_encode($messages),
-        'parameters' => [
-            'max_new_tokens' => 500,
+        'model' => OLLAMA_MODEL,
+        'messages' => $messages,
+        'tools' => $tools,
+        'stream' => false,
+        'options' => [
             'temperature' => 0.7,
-            'top_p' => 0.95,
-            'return_full_text' => false
+            'top_p' => 0.9,
+            'num_predict' => 512  // Limit response length
         ]
     ];
 
-    $ch = curl_init(HF_API_URL);
+    $ch = curl_init(OLLAMA_URL);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . HF_API_KEY,
         'Content-Type: application/json'
     ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 180); // 3 minutes
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+        return ['error' => 'Ollama connection error: ' . $error];
+    }
+    
     curl_close($ch);
 
     if ($httpCode !== 200) {
-        return ['error' => 'API request failed', 'code' => $httpCode];
+        return ['error' => 'Ollama API error', 'code' => $httpCode, 'response' => $response];
     }
 
-    return json_decode($response, true);
+    $data = json_decode($response, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        return ['error' => 'JSON decode error: ' . json_last_error_msg()];
+    }
+
+    return $data;
 }
 
+/**
+ * Search TheSportsDB for player information
+ */
 function searchTheSportsDB($playerName) {
     $url = 'https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=' . urlencode($playerName);
     $response = @file_get_contents($url);
@@ -99,6 +115,9 @@ function searchTheSportsDB($playerName) {
     return isset($data['player'][0]) ? $data['player'][0] : null;
 }
 
+/**
+ * Search Wikipedia for player information
+ */
 function searchWikipedia($playerName) {
     // Search for the player
     $searchUrl = 'https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' . 
@@ -137,42 +156,115 @@ function searchWikipedia($playerName) {
     ];
 }
 
+/**
+ * Execute a tool call
+ */
 function executeTool($toolName, $parameters) {
     switch ($toolName) {
         case 'search_thesportsdb':
-            return searchTheSportsDB($parameters['player_name']);
+            $result = searchTheSportsDB($parameters['player_name']);
+            return $result ? $result : ['error' => 'Player not found in TheSportsDB'];
+            
         case 'search_wikipedia':
-            return searchWikipedia($parameters['player_name']);
+            $result = searchWikipedia($parameters['player_name']);
+            return $result ? $result : ['error' => 'Player not found in Wikipedia'];
+            
         default:
-            return ['error' => 'Unknown tool'];
+            return ['error' => 'Unknown tool: ' . $toolName];
     }
 }
 
-function extractPlayerName($message) {
-    $patterns = [
-        '/about\s+([a-z\s]+?)(\?|$|stats|info)/i',
-        '/who\s+is\s+([a-z\s]+?)(\?|$)/i',
-        '/tell\s+me\s+about\s+([a-z\s]+?)(\?|$)/i',
-        '/info\s+about\s+([a-z\s]+?)(\?|$)/i',
-        '/([a-z\s]+?)\s+stats/i',
-        '/([a-z\s]+?)\s+info/i',
+/**
+ * Process the agent conversation with tool calls
+ */
+function processAgentConversation($userMessage, $tools) {
+    $messages = [
+        [
+            'role' => 'system',
+            'content' => 'You are a helpful football assistant. When users ask about football players, use the available tools to fetch accurate information. Always use BOTH search_thesportsdb and search_wikipedia tools to get comprehensive information. After getting the data, provide a friendly response in English that summarizes the key information about the player in 2-3 sentences.'
+        ],
+        [
+            'role' => 'user',
+            'content' => $userMessage
+        ]
     ];
-    
-    foreach ($patterns as $pattern) {
-        if (preg_match($pattern, $message, $matches)) {
-            return trim($matches[1]);
+
+    $maxIterations = 5;
+    $iteration = 0;
+    $toolResults = [];
+
+    while ($iteration < $maxIterations) {
+        $iteration++;
+        
+        // Call Mistral
+        $response = callMistralAgent($messages, $tools);
+        
+        if (isset($response['error'])) {
+            return [
+                'success' => false,
+                'message' => 'AI Error: ' . $response['error'],
+                'data' => null
+            ];
         }
+
+        $assistantMessage = $response['message'] ?? null;
+        
+        if (!$assistantMessage) {
+            return [
+                'success' => false,
+                'message' => 'უკაცრავად, AI-მ ვერ გასცა პასუხი.',
+                'data' => null
+            ];
+        }
+
+        // Add assistant message to history
+        $messages[] = $assistantMessage;
+
+        // Check if there are tool calls
+        if (isset($assistantMessage['tool_calls']) && !empty($assistantMessage['tool_calls'])) {
+            // Execute each tool call
+            foreach ($assistantMessage['tool_calls'] as $toolCall) {
+                $toolName = $toolCall['function']['name'];
+                $toolArgs = json_decode($toolCall['function']['arguments'], true);
+                
+                // Execute the tool
+                $toolResult = executeTool($toolName, $toolArgs);
+                
+                // Store results
+                $toolResults[$toolName] = $toolResult;
+                
+                // Add tool result to messages
+                $messages[] = [
+                    'role' => 'tool',
+                    'content' => json_encode($toolResult, JSON_UNESCAPED_UNICODE)
+                ];
+            }
+            
+            // Continue loop to get final response
+            continue;
+        }
+
+        // No more tool calls, we have the final response
+        $finalMessage = $assistantMessage['content'] ?? 'ინფორმაცია მიღებულია.';
+        
+        // Check if we got any player data
+        $hasData = !empty($toolResults);
+        
+        return [
+            'success' => $hasData,
+            'message' => $finalMessage,
+            'data' => $hasData ? [
+                'sports' => $toolResults['search_thesportsdb'] ?? null,
+                'wiki' => $toolResults['search_wikipedia'] ?? null
+            ] : null
+        ];
     }
-    
-    $words = array_filter(explode(' ', $message), function($w) {
-        return strlen($w) > 2;
-    });
-    
-    if (count($words) > 0) {
-        return implode(' ', array_slice($words, 0, 3));
-    }
-    
-    return trim($message);
+
+    return [
+        'success' => false,
+        'message' => 'უკაცრავად, ძალიან ბევრი ნაბიჯი დასჭირდა. სცადე თავიდან.',
+        'data' => null
+    ];
 }
 
 // Main request handler
@@ -185,32 +277,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
-    // Extract player name from message
-    $playerName = extractPlayerName($userMessage);
+    // Process with AI agent
+    $result = processAgentConversation($userMessage, $tools);
     
-    // Execute tools directly
-    $sportsData = searchTheSportsDB($playerName);
-    $wikiData = searchWikipedia($playerName);
-    
-    // Prepare response
-    if (!$sportsData && !$wikiData) {
-        $response = [
-            'success' => false,
-            'message' => "უკაცრავად, ინფორმაცია \"{$playerName}\"-ის შესახებ ვერ მოვიძიე. 😔 შეამოწმე სახელის სწორი წერა ან სცადე სხვა ფეხბურთელის სახელი.",
-            'data' => null
-        ];
-    } else {
-        $playerDisplayName = $sportsData['strPlayer'] ?? $wikiData['title'] ?? $playerName;
-        $response = [
-            'success' => true,
-            'message' => "აი ინფორმაცია {$playerDisplayName}-ის შესახებ:",
-            'data' => [
-                'sports' => $sportsData,
-                'wiki' => $wikiData
-            ]
-        ];
-    }
-    
-    echo json_encode($response, JSON_UNESCAPED_UNICODE);
+    echo json_encode($result, JSON_UNESCAPED_UNICODE);
 }
 ?>
