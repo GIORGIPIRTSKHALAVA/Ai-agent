@@ -126,38 +126,8 @@
             border-bottom-right-radius: 4px;
         }
 
-        .player-card {
-            background: white;
-            border: 2px solid #667eea;
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 10px;
-        }
 
-        .player-header-small {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .player-photo-small {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #667eea;
-        }
-
-        .player-photo-small.placeholder {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 32px;
-            font-weight: bold;
-        }
+        
 
         .player-info-small h3 {
             color: #333;
@@ -429,84 +399,7 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        function createPlayerCard(data) {
-            const sports = data.sports;
-            const wiki = data.wiki;
-            
-            const card = document.createElement('div');
-            card.className = 'player-card';
-            
-            let html = '<div class="player-header-small">';
-            
-            const photoUrl = sports?.strThumb || wiki?.image;
-            if (photoUrl) {
-                html += `<img src="${photoUrl}" alt="Player" class="player-photo-small">`;
-            } else {
-                const initial = (sports?.strPlayer || wiki?.title || 'P')[0];
-                html += `<div class="player-photo-small placeholder">${initial}</div>`;
-            }
-            
-            html += '<div class="player-info-small">';
-            html += `<h3>${sports?.strPlayer || wiki?.title || 'ფეხბურთელი'}</h3>`;
-            if (sports?.strNationality) {
-                html += `<p>🌍 ${sports.strNationality}</p>`;
-            }
-            if (sports?.strPosition) {
-                html += `<p>⚽ ${sports.strPosition}</p>`;
-            }
-            html += '</div></div>';
-
-            html += '<div class="stats-grid-small">';
-            
-            if (sports?.strTeam) {
-                html += `<div class="stat-box-small">
-                    <h4>🏟️</h4>
-                    <p>${sports.strTeam}</p>
-                </div>`;
-            }
-
-            if (sports?.dateBorn) {
-                const birthDate = new Date(sports.dateBorn);
-                const age = new Date().getFullYear() - birthDate.getFullYear();
-                html += `<div class="stat-box-small">
-                    <h4>${age} წლის</h4>
-                    <p>${sports.dateBorn}</p>
-                </div>`;
-            }
-
-            if (sports?.strHeight) {
-                html += `<div class="stat-box-small">
-                    <h4>${sports.strHeight}</h4>
-                    <p>სიმაღლე</p>
-                </div>`;
-            }
-
-            if (sports?.strWeight) {
-                html += `<div class="stat-box-small">
-                    <h4>${sports.strWeight}</h4>
-                    <p>წონა</p>
-                </div>`;
-            }
-
-            html += '</div>';
-
-            if (wiki?.extract || sports?.strDescriptionEN) {
-                html += '<div class="bio-section">';
-                html += '<h4>📖 ბიოგრაფია</h4>';
-                if (wiki?.extract) {
-                    html += `<span class="source-badge-small">Wikipedia</span>`;
-                    const shortExtract = wiki.extract.substring(0, 300) + (wiki.extract.length > 300 ? '...' : '');
-                    html += `<p>${shortExtract}</p>`;
-                } else if (sports?.strDescriptionEN) {
-                    html += `<span class="source-badge-small">TheSportsDB</span>`;
-                    html += `<p>${sports.strDescriptionEN.substring(0, 300)}...</p>`;
-                }
-                html += '</div>';
-            }
-
-            card.innerHTML = html;
-            return card;
-        }
+       
 
         function showTyping() {
             const chatMessages = document.getElementById('chatMessages');
