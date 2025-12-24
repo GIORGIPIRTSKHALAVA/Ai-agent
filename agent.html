@@ -126,71 +126,81 @@
             border-bottom-right-radius: 4px;
         }
 
+        .player-card {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
 
-        
+        .player-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
 
-        .player-info-small h3 {
+        .player-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+        }
+
+        .player-info h3 {
             color: #333;
             margin-bottom: 5px;
             font-size: 1.3em;
         }
 
-        .player-info-small p {
+        .player-info p {
             color: #666;
             font-size: 0.9em;
         }
 
-        .stats-grid-small {
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
-        .stat-box-small {
+        .stat-box {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             text-align: center;
             color: white;
         }
 
-        .stat-box-small h4 {
-            font-size: 1.2em;
+        .stat-box h4 {
+            font-size: 1.4em;
             margin-bottom: 5px;
         }
 
-        .stat-box-small p {
-            font-size: 0.75em;
+        .stat-box p {
+            font-size: 0.8em;
             opacity: 0.9;
         }
 
         .bio-section {
-            margin-top: 10px;
-            padding-top: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
             border-top: 1px solid #e0e0e0;
         }
 
         .bio-section h4 {
             color: #667eea;
-            margin-bottom: 8px;
-            font-size: 1em;
+            margin-bottom: 10px;
+            font-size: 1.1em;
         }
 
         .bio-section p {
             color: #555;
-            font-size: 0.9em;
+            font-size: 0.95em;
             line-height: 1.6;
-        }
-
-        .source-badge-small {
-            display: inline-block;
-            background: #4caf50;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.7em;
-            margin-bottom: 5px;
         }
 
         .typing-indicator {
@@ -330,6 +340,17 @@
             border-radius: 8px;
             margin-top: 10px;
         }
+
+        .source-badge {
+            display: inline-block;
+            background: #4caf50;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -365,13 +386,96 @@
     </div>
 
     <script>
-        
-        const API_ENDPOINT = 'api.php'; 
+        const API_ENDPOINT = 'api.php';
 
         function handleEnter(event) {
             if (event.key === 'Enter') {
                 sendMessage();
             }
+        }
+
+        function createPlayerCard(playerData) {
+            const card = document.createElement('div');
+            card.className = 'player-card';
+            
+            const sports = playerData.sports;
+            const wiki = playerData.wiki;
+            
+            // Player header with image
+            const header = document.createElement('div');
+            header.className = 'player-header';
+            
+            if (sports?.strThumb || wiki?.image) {
+                const img = document.createElement('img');
+                img.className = 'player-image';
+                img.src = sports?.strThumb || wiki?.image;
+                img.alt = 'Player photo';
+                img.onerror = function() { this.style.display = 'none'; };
+                header.appendChild(img);
+            }
+            
+            const info = document.createElement('div');
+            info.className = 'player-info';
+            
+            const name = document.createElement('h3');
+            name.textContent = sports?.strPlayer || wiki?.title || 'Unknown Player';
+            info.appendChild(name);
+            
+            if (sports?.strTeam) {
+                const team = document.createElement('p');
+                team.textContent = `${sports.strTeam}`;
+                if (sports.strNationality) {
+                    team.textContent += ` • ${sports.strNationality}`;
+                }
+                info.appendChild(team);
+            }
+            
+            header.appendChild(info);
+            card.appendChild(header);
+            
+            // Stats grid
+            if (sports) {
+                const statsGrid = document.createElement('div');
+                statsGrid.className = 'stats-grid';
+                
+                const stats = [
+                    { label: 'Position', value: sports.strPosition },
+                    { label: 'Height', value: sports.strHeight },
+                    { label: 'Weight', value: sports.strWeight },
+                ];
+                
+                stats.forEach(stat => {
+                    if (stat.value) {
+                        const statBox = document.createElement('div');
+                        statBox.className = 'stat-box';
+                        statBox.innerHTML = `<h4>${stat.value}</h4><p>${stat.label}</p>`;
+                        statsGrid.appendChild(statBox);
+                    }
+                });
+                
+                if (statsGrid.children.length > 0) {
+                    card.appendChild(statsGrid);
+                }
+            }
+            
+            // Biography section
+            if (wiki?.extract || sports?.strDescriptionEN) {
+                const bioSection = document.createElement('div');
+                bioSection.className = 'bio-section';
+                
+                const bioTitle = document.createElement('h4');
+                bioTitle.textContent = '📖 Biography';
+                bioSection.appendChild(bioTitle);
+                
+                const bioText = document.createElement('p');
+                const text = wiki?.extract || sports?.strDescriptionEN || '';
+                bioText.textContent = text.length > 300 ? text.substring(0, 300) + '...' : text;
+                bioSection.appendChild(bioText);
+                
+                card.appendChild(bioSection);
+            }
+            
+            return card;
         }
 
         function addMessage(text, isUser, playerData = null) {
@@ -398,8 +502,6 @@
             
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-
-       
 
         function showTyping() {
             const chatMessages = document.getElementById('chatMessages');
@@ -457,7 +559,7 @@
                 
                 hideTyping();
                 
-                if (data.success) {
+                if (data.success && data.data) {
                     addMessage(data.message, false, data.data);
                 } else {
                     addMessage(data.message || 'უკაცრავად, დაფიქსირდა შეცდომა. 😓 გთხოვთ სცადოთ თავიდან.', false);

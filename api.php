@@ -62,7 +62,7 @@ function callMistralAgent($messages, $tools) {
         'options' => [
             'temperature' => 0.7,
             'top_p' => 0.9,
-            'num_predict' => 512  // Limit response length
+            'num_predict' => 512
         ]
     ];
 
@@ -73,7 +73,7 @@ function callMistralAgent($messages, $tools) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json'
     ]);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 180); // 3 minutes
+    curl_setopt($ch, CURLOPT_TIMEOUT, 180);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
     $response = curl_exec($ch);
@@ -105,9 +105,17 @@ function callMistralAgent($messages, $tools) {
  */
 function searchTheSportsDB($playerName) {
     $url = 'https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=' . urlencode($playerName);
-    $response = @file_get_contents($url);
     
-    if ($response === false) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($response === false || $httpCode !== 200) {
         return null;
     }
     
@@ -122,7 +130,14 @@ function searchWikipedia($playerName) {
     // Search for the player
     $searchUrl = 'https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' . 
                  urlencode($playerName . ' footballer') . '&format=json&origin=*&srlimit=1';
-    $searchResponse = @file_get_contents($searchUrl);
+    
+    $ch = curl_init($searchUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    
+    $searchResponse = curl_exec($ch);
+    curl_close($ch);
     
     if ($searchResponse === false) {
         return null;
@@ -139,7 +154,14 @@ function searchWikipedia($playerName) {
     // Get page content
     $contentUrl = 'https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=true&explaintext=true&titles=' . 
                   urlencode($pageTitle) . '&format=json&origin=*&piprop=original';
-    $contentResponse = @file_get_contents($contentUrl);
+    
+    $ch = curl_init($contentUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    
+    $contentResponse = curl_exec($ch);
+    curl_close($ch);
     
     if ($contentResponse === false) {
         return null;
@@ -181,22 +203,19 @@ function processAgentConversation($userMessage, $tools) {
     $messages = [
         [
             'role' => 'system',
-            'content' => 'You are a football assistant with access to external tools.
+            'content' => 'You are a football assistant with access to external tools. When a user asks about a player:
 
-Decide internally which tool is needed based on the users request:
-- Use search_thesportsdb for stats and factual player data.
-- Use search_wikipedia for biography and career narrative.
+1. Extract the player name from their question
+2. Call the appropriate tool(s) to gather information
+3. Respond naturally with the information in 3-4 sentences
 
 IMPORTANT RULES:
-- Do NOT explain your tool choice.
-- Do NOT mention tools, APIs, or sources in your response.
-- Do NOT recommend what should be used.
-- If information is needed, call the appropriate tool immediately.
-
-Use one tool unless both are strictly necessary.
-Use both only if required to answer the question fully.
-
-After collecting the information, respond directly with the final answer in 3–4 sentences.'
+- Do NOT mention tools, APIs, or sources
+- Do NOT explain what you are doing
+- Respond directly with the information
+- Use search_thesportsdb for stats and factual data
+- Use search_wikipedia for biography and career details
+- Only use both tools if necessary to fully answer the question'
         ],
         [
             'role' => 'user',
@@ -227,7 +246,7 @@ After collecting the information, respond directly with the final answer in 3–
         if (!$assistantMessage) {
             return [
                 'success' => false,
-                'message' => 'უკაცრავად, AI-მ ვერ გასცა პასუხი.',
+                'message' => 'Sorry, AI failed to respond.',
                 'data' => null
             ];
         }
@@ -260,7 +279,7 @@ After collecting the information, respond directly with the final answer in 3–
         }
 
         // No more tool calls, we have the final response
-        $finalMessage = $assistantMessage['content'] ?? 'ინფორმაცია მიღებულია.';
+        $finalMessage = $assistantMessage['content'] ?? 'Information retrieved.';
         
         // Check if we got any player data
         $hasData = !empty($toolResults);
@@ -277,7 +296,7 @@ After collecting the information, respond directly with the final answer in 3–
 
     return [
         'success' => false,
-        'message' => 'უკაცრავად, ძალიან ბევრი ნაბიჯი დასჭირდა. სცადე თავიდან.',
+        'message' => 'Sorry, too many iterations required. Please try again.',
         'data' => null
     ];
 }
